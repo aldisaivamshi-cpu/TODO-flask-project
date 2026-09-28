@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+
+
+{% block title %}
+Update TODO
+{% endblock %}
+
+
+{% block body %}
+
+
+<div class="row justify-content-center">
+
+
+    <div class="col-md-8">
+
+
+        <div class="card">
+
+
+            <!-- HEADER -->
+
+            <div class="card-header bg-dark text-white">
+
+                <h4 class="mb-0">
+                    Update TODO
+                </h4>
+
+            </div>
+
+
+            <!-- FORM -->
+
+            <div class="card-body">
+
+
+                <form
+                    action="/update/{{ edit_todo.SNo }}"
+                    method="POST">
+
+
+                    <!-- TODO TITLE -->
+
+                    <div class="mb-3">
+
+                        <label
+                            for="todoTitle"
+                            class="form-label">
+
+                            TODO Title
+
+                        </label>
+
+
+                        <input
+                            type="text"
+                            class="form-control"
+                            id="todoTitle"
+                            name="todoTitle"
+                            value="{{ edit_todo.TODO_Title }}"
+                            required>
+
+                    </div>
+
+
+                    <!-- TODO DESCRIPTION -->
+
+                    <div class="mb-3">
+
+                        <label
+                            for="todoDescription"
+                            class="form-label">
+
+                            Description
+
+                        </label>
+
+
+                        <textarea
+                            class="form-control"
+                            id="todoDescription"
+                            name="todoDescription"
+                            rows="5"
+                            required>{{ edit_todo.Description }}</textarea>
+
+                    </div>
+
+
+                    <!-- UPDATE BUTTON -->
+
+                    <button
+                        type="submit"
+                        class="btn btn-dark">
+
+                        Update TODO
+
+                    </button>
+
+
+                    <!-- CANCEL BUTTON -->
+
+                    <a
+                        href="/"
+                        class="btn btn-dark">
+
+                        Cancel
+
+                    </a>
+
+
+                </form>
+
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+{% endblock %}
