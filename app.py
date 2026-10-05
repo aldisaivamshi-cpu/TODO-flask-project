@@ -2,8 +2,15 @@ import os
 from flask import Flask, render_template, request, redirect
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+
 
 app = Flask(__name__)
+
+def india_time():
+    return datetime.now(ZoneInfo("Asia/Kolkata")).replace(tzinfo=None)
 
 # Create instance folder if it doesn't exist
 os.makedirs('instance', exist_ok=True)
@@ -23,7 +30,10 @@ class ToDo(db.Model):
     SNo = db.Column(db.Integer, primary_key=True)
     TODO_Title = db.Column(db.String(200), nullable=False)
     Description = db.Column(db.String(500), nullable=False)
-    Date_Time = db.Column(db.DateTime, default=datetime.utcnow)
+    Date_Time = db.Column(
+    db.DateTime,
+    default=india_time
+)
 
     def __repr__(self) -> str:
         return f"{self.SNo} - {self.TODO_Title}"
@@ -45,7 +55,8 @@ def welcome():
         if title and description:
             todo = ToDo(
                 TODO_Title=title,
-                Description=description
+                Description=description,
+                Date_Time=india_time()
             )
 
             db.session.add(todo)
@@ -53,15 +64,15 @@ def welcome():
 
             print(f"Added TODO: {title}")
 
-    # Fetch all TODOs
-    allTODO = ToDo.query.all()
+        return redirect('/')
+
+    # Fetch all TODOs in S.No order
+    allTODO = ToDo.query.order_by(ToDo.SNo.asc()).all()
 
     return render_template(
         'index.html',
         allTODO=allTODO
     )
-
-
 @app.route('/home')
 def home():
     return 'WELCOME TO THE HOME PAGE OF TODO APP'
@@ -91,6 +102,7 @@ def update(SNo):
 
         todo.TODO_Title = request.form.get('todoTitle')
         todo.Description = request.form.get('todoDescription')
+        todo.Date_Time = india_time()
 
         db.session.commit()
 

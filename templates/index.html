@@ -181,7 +181,7 @@ TODO App
                         <!-- S.NO -->
 
                         <td>
-                            {{ todo.SNo }}
+                            {{ loop.index }}
                         </td>
 
 
@@ -202,7 +202,7 @@ TODO App
                         <!-- DATE -->
 
                         <td>
-                            {{ todo.Date_Time }}
+                            {{ todo.Date_Time.strftime('%Y-%m-%d %I:%M %p') }}
                         </td>
 
 
