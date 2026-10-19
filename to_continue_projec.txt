@@ -1,0 +1,46 @@
+continue the project doing this 
+1.python -m venv flask-env 
+2.source flask-env/bin/activate
+3.python -m pip install Flask Flask-SQLAlchemy Werkzeug
+4.python -m pip install -r requirements.txt
+5.run python app.py 
+6.if any error clear it 
+7. paest the code in the present code :   from flask import Blueprint, render_template, request, redirect, url_for, flash
+from werkzeug.security import check_password_hash
+from extensions import db
+
+login_dp = Blueprint("login", __name__)
+
+
+class Login(db.Model):
+    __tablename__ = "login"
+
+    ID = db.Column(db.Integer, primary_key=True)
+    Username = db.Column(db.String(200), unique=True, nullable=False)
+    Password = db.Column(db.String(500), nullable=False)
+
+
+@login_dp.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form.get("Username", "").strip()
+        password = request.form.get("Password", "")
+
+        print("Login attempt for:", username)
+
+        user = Login.query.filter_by(Username=username).first()
+
+        if user:
+            print("Username found in database")
+        else:
+            print("Username not found in database")
+
+        if user and check_password_hash(user.Password, password):
+            print("Password verified successfully")
+            return redirect(url_for("welcome"))
+
+        print("Login failed")
+        flash("Invalid username or password.")
+        return redirect(url_for("login.login"))
+
+    return render_template("login.html")

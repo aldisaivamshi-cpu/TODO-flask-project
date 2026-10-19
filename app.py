@@ -1,141 +1,137 @@
 import os
-from flask import Flask, render_template, request, redirect
-from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
 from datetime import datetime
 from zoneinfo import ZoneInfo
-
-
+from functools import wraps
+from flask import Flask, render_template, request, redirect, url_for, session, flash
+from extensions import db
+from login import login_dp, Login
 
 app = Flask(__name__)
+
+app.config["SECRET_KEY"] = os.environ.get("FLASK_SECRET_KEY", "change-this-secret-key-in-production")
+instance_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "instance")
+os.makedirs(instance_dir, exist_ok=True)
+
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(instance_dir, "todo.db")
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+db.init_app(app)
+
 
 def india_time():
     return datetime.now(ZoneInfo("Asia/Kolkata")).replace(tzinfo=None)
 
-# Create instance folder if it doesn't exist
-os.makedirs('instance', exist_ok=True)
-
-basedir = os.path.abspath(os.path.dirname(__file__))
-
-app.config['SQLALCHEMY_DATABASE_URI'] = (
-    f'sqlite:///{os.path.join(basedir, "instance", "todo.db")}'
-)
-
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-db = SQLAlchemy(app)
-
 
 class ToDo(db.Model):
+    __tablename__ = "todos"
     SNo = db.Column(db.Integer, primary_key=True)
     TODO_Title = db.Column(db.String(200), nullable=False)
     Description = db.Column(db.String(500), nullable=False)
-    Date_Time = db.Column(
-    db.DateTime,
-    default=india_time
-)
-
-    def __repr__(self) -> str:
-        return f"{self.SNo} - {self.TODO_Title}"
+    Date_Time = db.Column(db.DateTime, default=india_time)
+    # Link each todo to its owner
+    user_id = db.Column(db.Integer, db.ForeignKey("login.ID"), nullable=True)
 
 
-# Create database tables if they don't exist
+app.register_blueprint(login_dp)
+
 with app.app_context():
     db.create_all()
 
 
-@app.route('/', methods=['GET', 'POST'])
+# ── Auth guard decorator ──────────────────────────────────────────────────────
+
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if "user_id" not in session:
+            flash("Please log in to access your TODOs.")
+            return redirect(url_for("login.login"))
+        return f(*args, **kwargs)
+    return decorated
+
+
+# ── Routes ────────────────────────────────────────────────────────────────────
+
+@app.route("/")
 def welcome():
+    """Landing page — redirect logged-in users to their TODOs."""
+    if "user_id" in session:
+        return redirect(url_for("todos"))
+    return redirect(url_for("home"))
+
+
+@app.route("/home")
+def home():
+    return render_template("home.html")
+
+
+@app.route("/todos", methods=["GET", "POST"])
+@login_required
+def todos():
+    user_id = session["user_id"]
 
     if request.method == "POST":
-
-        title = request.form.get('todoTitle')
-        description = request.form.get('todoDescription')
-
+        title = request.form.get("todoTitle", "").strip()
+        description = request.form.get("todoDescription", "").strip()
         if title and description:
-            todo = ToDo(
+            db.session.add(ToDo(
                 TODO_Title=title,
                 Description=description,
-                Date_Time=india_time()
-            )
-
-            db.session.add(todo)
+                Date_Time=india_time(),
+                user_id=user_id
+            ))
             db.session.commit()
+            flash("Task added successfully!", "success")
+        else:
+            flash("Title and description are required.", "error")
+        return redirect(url_for("todos"))
 
-            print(f"Added TODO: {title}")
-
-        return redirect('/')
-
-    # Fetch all TODOs in S.No order
-    allTODO = ToDo.query.order_by(ToDo.SNo.asc()).all()
-
-    return render_template(
-        'index.html',
-        allTODO=allTODO
-    )
-@app.route('/home')
-def home():
-    return 'WELCOME TO THE HOME PAGE OF TODO APP'
+    allTODO = ToDo.query.filter_by(user_id=user_id).order_by(ToDo.SNo.asc()).all()
+    return render_template("index.html", allTODO=allTODO)
 
 
-@app.route('/show')
-def show():
-
-    allTODO = ToDo.query.all()
-
-    return render_template(
-        'index.html',
-        allTODO=allTODO
-    )
-
-
-@app.route('/update/<int:SNo>', methods=['GET', 'POST'])
+@app.route("/update/<int:SNo>", methods=["GET", "POST"])
+@login_required
 def update(SNo):
+    user_id = session["user_id"]
+    todo = db.session.get(ToDo, SNo)
 
-    # Get the specific TODO
-    todo = ToDo.query.get(SNo)
-
-    if not todo:
-        return redirect('/')
+    # Protect: users can only edit their own todos
+    if todo is None or todo.user_id != user_id:
+        flash("Task not found.", "error")
+        return redirect(url_for("todos"))
 
     if request.method == "POST":
+        title = request.form.get("todoTitle", "").strip()
+        description = request.form.get("todoDescription", "").strip()
+        if title and description:
+            todo.TODO_Title = title
+            todo.Description = description
+            todo.Date_Time = india_time()
+            db.session.commit()
+            flash("Task updated successfully!", "success")
+        return redirect(url_for("todos"))
 
-        todo.TODO_Title = request.form.get('todoTitle')
-        todo.Description = request.form.get('todoDescription')
-        todo.Date_Time = india_time()
-
-        db.session.commit()
-
-        return redirect('/')
-
-    # GET request - show update form
-    allTODO = ToDo.query.all()
-
-    return render_template(
-        'update.html',
-        allTODO=allTODO,
-        edit_todo=todo
-    )
+    return render_template("update.html", edit_todo=todo)
 
 
-@app.route('/delete/<int:SNo>')
+@app.route("/delete/<int:SNo>")
+@login_required
 def delete(SNo):
+    user_id = session["user_id"]
+    todo = db.session.get(ToDo, SNo)
 
-    # Get the specific TODO
-    todo = ToDo.query.get(SNo)
-
-    if todo:
+    if todo is not None and todo.user_id == user_id:
         db.session.delete(todo)
         db.session.commit()
-
-        print(f"Deleted TODO: {todo.TODO_Title}")
-
-    return redirect('/')
+        flash("Task deleted.", "success")
+    return redirect(url_for("todos"))
 
 
-if __name__ == '__main__':
-    app.run(
-        host='0.0.0.0',
-        port=3000,
-        debug=True
-    )
+@app.route("/about")
+def about():
+    return render_template("about.html")
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)

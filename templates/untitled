@@ -1,0 +1,7 @@
+continue the project doing this 
+1.python -m venv flask-env 
+2.source flask-env/bin/activate
+3.python -m pip install Flask Flask-SQLAlchemy Werkzeug
+4.python -m pip install -r requirements.txt
+5.run python app.py 
+6.if any error clear it 

@@ -1,4 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+flask-env/
 venv/
+.venv/
+
+# Local databases
+instance/
+*.db
+
+# Environment variables and secrets
+.env
+
+# Editor files
+.vscode/venv/
 __pycache__/
 *.pyc
 instance/
